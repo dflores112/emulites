@@ -23,8 +23,8 @@ export function mountHud(
     <div class="hud-top">
       <span class="hud-brand">Emulites</span>
       <span class="hud-name">${escapeHtml(opts.name)}</span>
-      ${opts.onNewGame ? '<button type="button" class="hud-new" id="hud-new">New Game</button>' : ''}
     </div>
+    ${opts.onNewGame ? '<button type="button" class="hud-new" id="hud-new">New Game</button>' : ''}
     <div class="hotbar-wrap" id="hotbar-wrap">
       <button type="button" class="hotbar-nav hotbar-nav-left" id="hotbar-left" aria-label="Scroll hotbar left">‹</button>
       <div class="hotbar" id="hotbar"></div>

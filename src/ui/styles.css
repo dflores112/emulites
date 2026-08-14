@@ -366,14 +366,20 @@ body {
 
 .hud-new {
   pointer-events: auto;
-  margin-left: 8px;
+  position: absolute;
+  left: 16px;
+  bottom: 22px;
+  z-index: 2;
+  margin: 0;
   font: inherit;
-  font-size: 11px;
-  padding: 4px 8px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  padding: 8px 12px;
   border: 2px solid #1a1510;
-  background: rgba(243, 239, 230, 0.92);
+  background: rgba(243, 239, 230, 0.94);
   color: #1c1814;
   cursor: pointer;
+  box-shadow: 3px 3px 0 rgba(0, 0, 0, 0.35);
 }
 
 .hud-new:hover {
@@ -658,6 +664,10 @@ body {
   }
   .hud-top {
     max-width: calc(100% - 24px);
+  }
+  .hud-new {
+    left: 12px;
+    bottom: 78px;
   }
   .hud-help {
     display: none;
