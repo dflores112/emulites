@@ -1,40 +1,67 @@
-# Emulites
+<p align="center">
+  <img src="public/favicon.png" alt="Emulites" width="72" height="72" />
+</p>
 
-A little isometric pixel world you build in the browser.
+<h1 align="center">Emulites</h1>
 
-Name your Emulite, pick an outfit (hats included), wander a generated town, place floors and furniture, and keep your world saved locally.
+<p align="center">
+  <strong>A tiny isometric pixel world you build in the browser.</strong>
+</p>
 
-**Live repo:** [github.com/dflores112/emulites](https://github.com/dflores112/emulites)
+<p align="center">
+  Name your Emulite · pick an outfit · shape a town · save your world
+</p>
+
+<p align="center">
+  <a href="https://github.com/dflores112/emulites">GitHub</a>
+  ·
+  Phaser 3
+  ·
+  Vite + TypeScript
+</p>
 
 ---
 
-## Play
+## Why Emulites
+
+Emulites is a cozy browser builder: an isometric map with a plaza, farm, church, market stalls, wandering NPCs, and little animals. You enter as your own Emulite, place tiles from a hotbar, and your character + builds stick around in local save.
+
+No accounts. No install beyond Node. Open it, play, build.
+
+---
+
+## Quick start
 
 ```bash
+git clone https://github.com/dflores112/emulites.git
+cd emulites
 npm install
 npm run dev
 ```
 
-Open the local URL Vite prints (usually `http://127.0.0.1:5173`).
+Then open the URL Vite prints (usually `http://127.0.0.1:5173`).
 
-| Command | What it does |
+| Script | Purpose |
 | --- | --- |
-| `npm run dev` | Local development server |
+| `npm run dev` | Local development |
 | `npm run build` | Typecheck + production build → `dist/` |
-| `npm run preview` | Serve the production build |
+| `npm run preview` | Preview the production build |
 
-Deploy-ready for Netlify (`netlify.toml` → `npm run build`, publish `dist`).
+Ships with a Netlify config (`netlify.toml`) that builds with Node 22 and publishes `dist`.
 
 ---
 
-## What you can do
+## Features
 
-- **Create** — pick a name and one of 12 outfits (caps, beanies, crown, wizard hat, and more)
-- **Explore** — grass, paths, plaza, water, farms, church, market stalls, animals, and named NPCs
-- **Build** — hotbar placeables (floors, walls, doors, furniture, crops, trees…)
-- **Chat** — town chat on the side of the map
-- **Save** — character + placed tiles autosave in `localStorage`
-- **About** — top banner opens About, with a copyable Emulite contract address
+| | |
+| --- | --- |
+| **Create** | Name your Emulite and choose from **12 outfits** — denim, crimson, moss, violet, plus caps, beanies, top hat, crown, wizard, flower, and bandana |
+| **World** | Large isometric map: grass, paths, plaza, water, trees, farms, barn, church steeple, wells, market stalls |
+| **Town life** | Named NPCs in mixed outfits, chickens / rabbits / frogs, and a side-panel town chat |
+| **Build** | Hotbar placeables — floors, walls, doors, furniture, crops, fences, scenery — with ghost preview |
+| **Camera** | Scroll zoom, drag-to-pan, recenter |
+| **Save** | Autosave character + placed tiles in `localStorage`; continue on reload |
+| **About** | Top announcement banner → About page with a **copyable contract address** |
 
 ---
 
@@ -42,40 +69,54 @@ Deploy-ready for Netlify (`netlify.toml` → `npm run build`, publish `dist`).
 
 | Input | Action |
 | --- | --- |
-| `WASD` / arrows | Move |
-| Scroll | Zoom |
-| `C` | Recenter camera |
-| Hotbar / number keys | Select placeable |
-| Click | Place |
-| Right-click | Remove |
-| `H` / Drag | Pan the map |
-| New Game (bottom left) | Clear save and return to Enter World |
+| `W` `A` `S` `D` / arrows | Move |
+| Mouse wheel | Zoom |
+| `C` | Recenter on you |
+| Hotbar / keys on icons | Select placeable |
+| Left click | Place |
+| Right click | Remove |
+| `H` or **Drag** mode | Pan the map |
+| **New Game** (bottom left) | Wipe save → Enter World screen |
+
+---
+
+## Project structure
+
+```
+src/
+  data/        Outfits, build catalog, About + contract copy
+  scenes/      Create scene · World scene
+  systems/     Iso grid, world gen, build, NPCs, animals, save, textures
+  ui/          Create UI, HUD, chat, announce/About, styles
+public/        Pixel sprite assets + favicon
+```
+
+Tune the banner text and Emulite contract address in:
+
+```
+src/data/site.ts
+```
 
 ---
 
 ## Stack
 
-- [Vite](https://vitejs.dev/) + TypeScript
-- [Phaser](https://phaser.io/) `3.88.2`
-- Plain DOM UI for create screen, HUD, chat, and About
+- **[Phaser](https://phaser.io/) 3.88.2** — isometric world, sprites, input
+- **[Vite](https://vitejs.dev/)** + **TypeScript** — fast local loop and Netlify-ready build
+- **DOM UI** — create screen, HUD, chat, and About overlay
 
 ---
 
-## Project layout
+## Contributing / deploying
 
-```
-src/
-  data/       outfits, build catalog, About / contract copy
-  scenes/     Create + World
-  systems/    iso grid, world gen, build, NPCs, animals, save, textures
-  ui/         create screen, HUD, chat, announce / About, styles
-public/       pixel sprite + favicon
-```
+1. Fork or clone
+2. `npm install` → `npm run dev`
+3. Ship with `npm run build` (or connect the repo to Netlify)
 
-Contract address and banner text live in `src/data/site.ts`.
+Ideas welcome: more outfits, new placeables, better NPC routines, multiplayer later.
 
 ---
 
-## License
-
-Private project for now — all rights reserved unless noted otherwise.
+<p align="center">
+  <sub>Built for little worlds.</sub>
+</p>
