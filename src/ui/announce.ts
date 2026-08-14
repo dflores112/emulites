@@ -17,11 +17,12 @@ export function mountAnnounceChrome(): () => void {
   aboutHost.innerHTML = `
     <div class="about-panel" role="dialog" aria-labelledby="about-title">
       <p class="brand" id="about-title">${escapeHtml(ABOUT.title)}</p>
+      <p class="about-chain">${escapeHtml(ABOUT.chainNote)}</p>
       <p class="about-lead">${escapeHtml(ABOUT.lead)}</p>
       <p class="about-body">${escapeHtml(ABOUT.body)}</p>
 
       <div class="contract-block">
-        <p class="section-label">Emulite contract</p>
+        <p class="section-label">${escapeHtml(ABOUT.contractLabel)}</p>
         <div class="contract-row">
           <code class="contract-addr" id="contract-addr" title="${escapeHtml(EMULITE_CONTRACT)}">${escapeHtml(EMULITE_CONTRACT)}</code>
           <button type="button" class="btn primary" id="contract-copy">Copy</button>

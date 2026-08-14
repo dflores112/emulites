@@ -5,7 +5,8 @@
 <h1 align="center">Emulites</h1>
 
 <p align="center">
-  <strong>A tiny isometric pixel world you build in the browser.</strong>
+  <strong>A tiny isometric pixel world you build in the browser.</strong><br />
+  <em>Built on Solana.</em>
 </p>
 
 <p align="center">
@@ -15,9 +16,11 @@
 <p align="center">
   <a href="https://github.com/dflores112/emulites">GitHub</a>
   ·
-  Phaser 3
+  <a href="https://emulites.netlify.app">Play</a>
   ·
-  Vite + TypeScript
+  Solana
+  ·
+  Phaser 3
 </p>
 
 ---
@@ -25,6 +28,8 @@
 ## Why Emulites
 
 Emulites is a cozy browser builder: an isometric map with a plaza, farm, church, market stalls, wandering NPCs, and little animals. You enter as your own Emulite, place tiles from a hotbar, and your character + builds stick around in local save.
+
+**Built on Solana** — the playable world runs in the browser; the Emulite mint on Solana is the on-chain home for the project (copy it from the in-game About banner).
 
 No accounts. No install beyond Node. Open it, play, build.
 
@@ -57,11 +62,13 @@ Ships with a Netlify config (`netlify.toml`) that builds with Node 22 and publis
 | --- | --- |
 | **Create** | Name your Emulite and choose from **12 outfits** — denim, crimson, moss, violet, plus caps, beanies, top hat, crown, wizard, flower, and bandana |
 | **World** | Large isometric map: grass, paths, plaza, water, trees, farms, barn, church steeple, wells, market stalls |
+| **Cities** | Four gridded cities — streets, sidewalks, lane paint, crosswalks, traffic, and skylines up to 13 tiles tall with setbacks, water towers and antennas |
+| **Theme parks** | Thrill City has two coasters, a Ferris wheel and drop tower; Splash Bay has winding water slides, racing chutes, pools and a lazy river |
 | **Town life** | Named NPCs in mixed outfits, chickens / rabbits / frogs, and a side-panel town chat |
 | **Build** | Hotbar placeables — floors, walls, doors, furniture, crops, fences, scenery — with ghost preview |
 | **Camera** | Scroll zoom, drag-to-pan, recenter |
 | **Save** | Autosave character + placed tiles in `localStorage`; continue on reload |
-| **About** | Top announcement banner → About page with a **copyable contract address** |
+| **About** | Top announcement banner → About page with a **copyable Solana mint address** |
 
 ---
 
@@ -91,7 +98,7 @@ src/
 public/        Pixel sprite assets + favicon
 ```
 
-Tune the banner text and Emulite contract address in:
+Tune the banner text and Emulite Solana mint address in:
 
 ```
 src/data/site.ts

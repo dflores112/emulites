@@ -9,6 +9,7 @@ import {
   type OutfitId,
 } from '../data/outfits'
 import type { ItemId } from '../data/catalog'
+import { TOWERS, type TowerSpec } from '../data/city'
 
 export const PLAYER_DISPLAY_SCALE = 4
 
@@ -77,6 +78,8 @@ export function generateTextures(scene: Phaser.Scene): void {
     register(scene, key, c)
   }
 
+  softTile('asphalt', 0x3a3f45, 0x43484f, 0x33373c)
+  softTile('sidewalk', 0x9c9c98, 0xacaca8, 0x8e8e8a)
   softTile('grass', 0x5faa52, 0x68b55c, 0x569a48)
   softTile('grass2', 0x5ca64f, 0x66b259, 0x5aad50)
   softTile('path', 0xb89a62, 0xc8ae72, 0x9a7e4a)
@@ -672,7 +675,561 @@ export function generateTextures(scene: Phaser.Scene): void {
     register(scene, 'animal-frog', c)
   }
 
+  generateCityTextures(scene)
   generatePlayerTextures(scene)
+}
+
+const HW = TILE_W / 2
+const HH = TILE_H / 2
+
+type Pt = { x: number; y: number }
+
+function hash3(a: number, b: number, c: number): number {
+  let h = Math.imul(a | 0, 374761393) ^ Math.imul(b | 0, 668265263) ^ Math.imul(c | 0, 2246822519)
+  h = Math.imul(h ^ (h >>> 13), 1274126177)
+  return (h ^ (h >>> 16)) >>> 0
+}
+
+function poly(ctx: CanvasRenderingContext2D, pts: Pt[], color: number): void {
+  ctx.beginPath()
+  ctx.moveTo(pts[0]!.x, pts[0]!.y)
+  for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i]!.x, pts[i]!.y)
+  ctx.closePath()
+  ctx.fillStyle = css(color)
+  ctx.fill()
+}
+
+/**
+ * Corner points of an isometric box whose ground-level front corner is (sx, sy).
+ * `w` runs along +x (screen right-down), `d` along +y (screen left-down).
+ */
+function boxPoints(sx: number, sy: number, w: number, d: number, hpx: number) {
+  const roofS: Pt = { x: sx, y: sy - hpx }
+  return {
+    roofS,
+    roofN: { x: sx + (d - w) * HW, y: roofS.y - HH * (w + d) } as Pt,
+    roofE: { x: sx + HW * d, y: roofS.y - HH * d } as Pt,
+    roofW: { x: sx - HW * w, y: roofS.y - HH * w } as Pt,
+    baseS: { x: sx, y: sy } as Pt,
+    baseE: { x: sx + HW * d, y: sy - HH * d } as Pt,
+    baseW: { x: sx - HW * w, y: sy - HH * w } as Pt,
+  }
+}
+
+function drawIsoBox(
+  ctx: CanvasRenderingContext2D,
+  sx: number,
+  sy: number,
+  w: number,
+  d: number,
+  hpx: number,
+  top: number,
+  left: number,
+  right: number,
+) {
+  const p = boxPoints(sx, sy, w, d, hpx)
+  poly(ctx, [p.roofE, p.roofS, p.baseS, p.baseE], right)
+  poly(ctx, [p.roofW, p.roofS, p.baseS, p.baseW], left)
+  poly(ctx, [p.roofN, p.roofE, p.roofS, p.roofW], top)
+  return p
+}
+
+/** Window grid on one facade, walking from `anchor` along `dir` (per tile). */
+function drawFacade(
+  ctx: CanvasRenderingContext2D,
+  anchor: Pt,
+  dir: Pt,
+  spanTiles: number,
+  hpx: number,
+  spec: TowerSpec,
+  seed: number,
+): void {
+  const cols = spec.cols ?? 2
+  const rowH = spec.rowH ?? 22
+  const winW = 0.22
+  const gap = (1 - cols * winW) / (cols + 1)
+  const winH = Math.max(6, Math.min(13, rowH - 8))
+  const bottomPad = 18
+
+  for (let tile = 0; tile < spanTiles; tile++) {
+    for (let ci = 0; ci < cols; ci++) {
+      const a = tile + gap * (ci + 1) + winW * ci
+      const bx = anchor.x + dir.x * a
+      const by = anchor.y + dir.y * a
+      const dx = dir.x * winW
+      const dy = dir.y * winW
+      for (let y = 10; y + winH <= hpx - bottomPad; y += rowH) {
+        const lit = hash3(seed + tile, ci, y) % 100 < 24
+        poly(
+          ctx,
+          [
+            { x: bx, y: by + y },
+            { x: bx + dx, y: by + dy + y },
+            { x: bx + dx, y: by + dy + y + winH },
+            { x: bx, y: by + y + winH },
+          ],
+          lit ? spec.glassLit : spec.glass,
+        )
+      }
+    }
+  }
+}
+
+function drawWaterTower(ctx: CanvasRenderingContext2D, cx: number, cy: number): void {
+  ctx.fillStyle = css(0x4a3a2a)
+  ctx.fillRect(cx - 7, cy - 6, 2, 8)
+  ctx.fillRect(cx + 5, cy - 6, 2, 8)
+  ctx.fillStyle = css(0x7a5636)
+  ctx.fillRect(cx - 8, cy - 20, 16, 14)
+  ctx.fillStyle = css(0x8f6740)
+  ctx.fillRect(cx - 8, cy - 20, 8, 14)
+  ctx.beginPath()
+  ctx.moveTo(cx, cy - 28)
+  ctx.lineTo(cx + 9, cy - 20)
+  ctx.lineTo(cx - 9, cy - 20)
+  ctx.closePath()
+  ctx.fillStyle = css(0x5b4028)
+  ctx.fill()
+}
+
+function towerTexture(scene: Phaser.Scene, spec: TowerSpec): void {
+  const stories = spec.stories ?? []
+  let padTop = 14
+  for (const s of stories) padTop += s.hpx + 2 * HH * s.inset
+  if (spec.antenna) padTop += spec.antenna
+  if (spec.waterTower) padTop += 30
+
+  const cw = HW * (spec.w + spec.d)
+  const ch = Math.ceil(padTop + HH * (spec.w + spec.d) + spec.hpx)
+  const c = makeCanvas(cw, ch)
+  const ctx = c.getContext('2d')!
+
+  const sx = HW * spec.w
+  let sy = ch
+  let w = spec.w
+  let d = spec.d
+  let hpx = spec.hpx
+
+  for (let level = 0; level <= stories.length; level++) {
+    const p = drawIsoBox(ctx, sx, sy, w, d, hpx, spec.roof, spec.wall, spec.wallShade)
+    drawFacade(ctx, p.roofE, { x: -HW, y: HH }, d, hpx, spec, level * 31 + 7)
+    drawFacade(ctx, p.roofW, { x: HW, y: HH }, w, hpx, spec, level * 47 + 3)
+
+    // Parapet cap so the roof reads as a hard edge
+    ctx.strokeStyle = css(spec.roof)
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.moveTo(p.roofW.x, p.roofW.y)
+    ctx.lineTo(p.roofS.x, p.roofS.y)
+    ctx.lineTo(p.roofE.x, p.roofE.y)
+    ctx.stroke()
+
+    if (spec.band !== undefined) {
+      poly(
+        ctx,
+        [
+          { x: p.roofW.x, y: p.roofW.y + 6 },
+          { x: p.roofS.x, y: p.roofS.y + 6 },
+          { x: p.roofE.x, y: p.roofE.y + 6 },
+          { x: p.roofE.x, y: p.roofE.y + 10 },
+          { x: p.roofS.x, y: p.roofS.y + 10 },
+          { x: p.roofW.x, y: p.roofW.y + 10 },
+        ],
+        spec.band,
+      )
+    }
+
+    if (level === 0) {
+      // Street-level entrance on the sunny facade
+      const doorA = Math.max(0.3, w / 2 - 0.15)
+      const bx = p.roofW.x + HW * doorA
+      const by = p.roofW.y + HH * doorA
+      poly(
+        ctx,
+        [
+          { x: bx, y: by + hpx - 16 },
+          { x: bx + HW * 0.32, y: by + HH * 0.32 + hpx - 16 },
+          { x: bx + HW * 0.32, y: by + HH * 0.32 + hpx },
+          { x: bx, y: by + hpx },
+        ],
+        0x1e2228,
+      )
+    }
+
+    if (level < stories.length) {
+      const st = stories[level]!
+      sy = sy - hpx - 2 * HH * st.inset
+      w = Math.max(0.6, w - 2 * st.inset)
+      d = Math.max(0.6, d - 2 * st.inset)
+      hpx = st.hpx
+    } else {
+      const topCx = p.roofS.x + HW * (d - w) * 0.5
+      const topCy = p.roofS.y - HH * (w + d) * 0.5
+      if (spec.waterTower) drawWaterTower(ctx, topCx, topCy)
+      if (spec.antenna) {
+        ctx.fillStyle = css(0xb9bec4)
+        ctx.fillRect(topCx - 1.5, topCy - spec.antenna, 3, spec.antenna)
+        ctx.fillStyle = css(0xff5a4a)
+        ctx.fillRect(topCx - 2, topCy - spec.antenna - 3, 4, 3)
+      }
+    }
+  }
+
+  register(scene, `tower-${spec.id}`, c)
+}
+
+function carTexture(scene: Phaser.Scene, key: string, body: number, shade: number): void {
+  const w = 1.15
+  const d = 0.55
+  const hpx = 11
+  const cw = 2 * Math.ceil(HW * Math.max(w, d)) + 8
+  const ch = Math.ceil(HH * (w + d) + hpx + 14)
+  const c = makeCanvas(cw, ch)
+  const ctx = c.getContext('2d')!
+  const sx = cw / 2
+  const sy = ch - 2
+
+  // wheels first so they peek under the body
+  ctx.fillStyle = css(0x1b1e22)
+  ctx.beginPath()
+  ctx.ellipse(sx - HW * 0.75, sy - HH * 0.75, 3.2, 2.2, 0, 0, Math.PI * 2)
+  ctx.ellipse(sx + HW * 0.4, sy - HH * 0.1, 3.2, 2.2, 0, 0, Math.PI * 2)
+  ctx.fill()
+
+  const p = drawIsoBox(ctx, sx, sy - 2, w, d, hpx, body, body, shade)
+  // cabin
+  drawIsoBox(
+    ctx,
+    sx - HW * 0.12,
+    p.roofS.y - 1,
+    w * 0.55,
+    d * 0.8,
+    8,
+    body,
+    0x9fd8ea,
+    0x74b4cc,
+  )
+  ctx.fillStyle = css(0xfff2c0)
+  ctx.fillRect(sx + HW * 0.52, sy - HH * 0.6 - 8, 3, 2)
+  register(scene, key, c)
+}
+
+/** Streets, lane paint and the skyline stock. */
+export function generateCityTextures(scene: Phaser.Scene): void {
+  // Lane dashes (overlaid on asphalt)
+  const laneDash = (key: string, dir: Pt) => {
+    const c = makeCanvas(TILE_W, TILE_H)
+    const ctx = c.getContext('2d')!
+    const cx = TILE_W / 2
+    const cy = TILE_H / 2
+    ctx.strokeStyle = css(0xe8d24a)
+    ctx.lineWidth = 3
+    ctx.globalAlpha = 0.85
+    ctx.beginPath()
+    ctx.moveTo(cx - dir.x * 0.3, cy - dir.y * 0.3)
+    ctx.lineTo(cx + dir.x * 0.3, cy + dir.y * 0.3)
+    ctx.stroke()
+    register(scene, key, c)
+  }
+  laneDash('laneX', { x: TILE_W, y: TILE_H })
+  laneDash('laneY', { x: -TILE_W, y: TILE_H })
+
+  // Crosswalk
+  {
+    const pad = 8
+    const c = makeCanvas(TILE_W + pad, TILE_H + pad)
+    const ctx = c.getContext('2d')!
+    const cx = (TILE_W + pad) / 2
+    const cy = (TILE_H + pad) / 2
+    fillDiamond(ctx, cx, cy, TILE_W + 6, TILE_H + 6, css(0x3a3f45))
+    fillDiamond(ctx, cx, cy - 1, TILE_W - 2, TILE_H, css(0x43484f))
+    ctx.strokeStyle = css(0xe8e6dc)
+    ctx.lineWidth = 4
+    ctx.globalAlpha = 0.85
+    for (const o of [-0.3, -0.1, 0.1, 0.3]) {
+      ctx.beginPath()
+      ctx.moveTo(cx - HW * 0.42 - HW * o, cy - HH * 0.42 + HH * o)
+      ctx.lineTo(cx + HW * 0.42 - HW * o, cy + HH * 0.42 + HH * o)
+      ctx.stroke()
+    }
+    ctx.globalAlpha = 1
+    register(scene, 'crosswalk', c)
+  }
+
+  for (const spec of TOWERS) towerTexture(scene, spec)
+
+  carTexture(scene, 'car-taxi', 0xf0c02c, 0xc99a18)
+  carTexture(scene, 'car-red', 0xc0463c, 0x94322a)
+  carTexture(scene, 'car-blue', 0x3e6fa8, 0x2c5182)
+  generateThemeParkTextures(scene)
+}
+
+function rideCanvas(key: string, w: number, h: number, draw: (ctx: CanvasRenderingContext2D) => void): void {
+  const c = makeCanvas(w, h)
+  const ctx = c.getContext('2d')!
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  draw(ctx)
+  register(activeTextureScene!, key, c)
+}
+
+let activeTextureScene: Phaser.Scene | null = null
+
+function coasterTrack(
+  ctx: CanvasRenderingContext2D,
+  path: Path2D,
+  rail = 0xe4493f,
+  tie = 0xffcf4a,
+): void {
+  ctx.strokeStyle = css(0x4a3328)
+  ctx.lineWidth = 12
+  ctx.stroke(path)
+  ctx.strokeStyle = css(rail)
+  ctx.lineWidth = 7
+  ctx.stroke(path)
+  ctx.strokeStyle = css(tie)
+  ctx.lineWidth = 2
+  ctx.setLineDash([3, 9])
+  ctx.stroke(path)
+  ctx.setLineDash([])
+}
+
+/** Large, readable ride sprites used by the two destination parks. */
+function generateThemeParkTextures(scene: Phaser.Scene): void {
+  activeTextureScene = scene
+
+  rideCanvas('ride-coaster-loop', 270, 230, (ctx) => {
+    // Steel supports
+    ctx.strokeStyle = css(0x74808a)
+    ctx.lineWidth = 5
+    for (const x of [38, 78, 132, 188, 230]) {
+      ctx.beginPath()
+      ctx.moveTo(x, 216)
+      ctx.lineTo(135, 42 + Math.abs(135 - x) * 0.25)
+      ctx.stroke()
+    }
+    const p = new Path2D()
+    p.moveTo(12, 202)
+    p.bezierCurveTo(52, 202, 52, 174, 76, 168)
+    p.bezierCurveTo(70, 30, 202, 22, 196, 160)
+    p.bezierCurveTo(218, 174, 232, 190, 258, 195)
+    coasterTrack(ctx, p)
+    // Train
+    for (let i = 0; i < 3; i++) {
+      ctx.fillStyle = css(i === 1 ? 0x2f6fbd : 0xffd14a)
+      ctx.fillRect(28 + i * 14, 188 - i * 3, 12, 8)
+      ctx.fillStyle = css(0x20252a)
+      ctx.fillRect(31 + i * 14, 196 - i * 3, 3, 3)
+      ctx.fillRect(37 + i * 14, 196 - i * 3, 3, 3)
+    }
+  })
+
+  rideCanvas('ride-coaster-hill', 330, 220, (ctx) => {
+    ctx.strokeStyle = css(0x78848c)
+    ctx.lineWidth = 4
+    for (const x of [30, 62, 98, 136, 176, 216, 258, 300]) {
+      ctx.beginPath()
+      ctx.moveTo(x, 210)
+      ctx.lineTo(x, 70 + Math.abs(165 - x) * 0.65)
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.moveTo(x - 11, 210)
+      ctx.lineTo(x + 11, 210)
+      ctx.stroke()
+    }
+    const p = new Path2D()
+    p.moveTo(8, 194)
+    p.bezierCurveTo(70, 180, 102, 30, 160, 30)
+    p.bezierCurveTo(207, 32, 222, 165, 260, 172)
+    p.bezierCurveTo(283, 177, 300, 126, 324, 120)
+    coasterTrack(ctx, p, 0x7d4fd6, 0xffd04a)
+  })
+
+  rideCanvas('ride-ferris', 210, 230, (ctx) => {
+    ctx.strokeStyle = css(0x59656f)
+    ctx.lineWidth = 7
+    ctx.beginPath()
+    ctx.moveTo(105, 96)
+    ctx.lineTo(66, 218)
+    ctx.moveTo(105, 96)
+    ctx.lineTo(144, 218)
+    ctx.stroke()
+    ctx.strokeStyle = css(0x45a8c9)
+    ctx.lineWidth = 8
+    ctx.beginPath()
+    ctx.arc(105, 92, 72, 0, Math.PI * 2)
+    ctx.stroke()
+    ctx.lineWidth = 3
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI * 2
+      const x = 105 + Math.cos(a) * 72
+      const y = 92 + Math.sin(a) * 72
+      ctx.beginPath()
+      ctx.moveTo(105, 92)
+      ctx.lineTo(x, y)
+      ctx.stroke()
+      ctx.fillStyle = css([0xf25f5c, 0xffcf4a, 0x55b86a, 0x7655d8][i % 4]!)
+      ctx.fillRect(x - 7, y - 2, 14, 10)
+      ctx.strokeStyle = css(0x303840)
+      ctx.strokeRect(x - 7, y - 2, 14, 10)
+      ctx.strokeStyle = css(0x45a8c9)
+    }
+    ctx.fillStyle = css(0xffcf4a)
+    ctx.beginPath()
+    ctx.arc(105, 92, 11, 0, Math.PI * 2)
+    ctx.fill()
+  })
+
+  rideCanvas('ride-drop', 110, 265, (ctx) => {
+    ctx.fillStyle = css(0x66727d)
+    ctx.fillRect(50, 20, 10, 224)
+    ctx.fillStyle = css(0x8b98a3)
+    ctx.fillRect(54, 20, 3, 224)
+    ctx.fillStyle = css(0xe64e48)
+    ctx.fillRect(23, 72, 64, 16)
+    ctx.fillStyle = css(0x252b30)
+    for (let x = 28; x < 84; x += 9) ctx.fillRect(x, 77, 5, 6)
+    ctx.beginPath()
+    ctx.moveTo(55, 4)
+    ctx.lineTo(68, 22)
+    ctx.lineTo(42, 22)
+    ctx.closePath()
+    ctx.fillStyle = css(0xffcf4a)
+    ctx.fill()
+    ctx.fillStyle = css(0x4a5158)
+    ctx.fillRect(33, 242, 44, 9)
+  })
+
+  rideCanvas('ride-coaster-station', 220, 120, (ctx) => {
+    const p = drawIsoBox(ctx, 110, 116, 2.7, 2.7, 48, 0xf2c64b, 0xd95645, 0xb93d36)
+    ctx.fillStyle = css(0x26313a)
+    ctx.fillRect(p.roofW.x + 46, p.roofW.y + 48, 28, 28)
+    ctx.strokeStyle = css(0xf4e9cb)
+    ctx.lineWidth = 4
+    ctx.beginPath()
+    ctx.moveTo(p.roofW.x, p.roofW.y)
+    ctx.lineTo(p.roofS.x, p.roofS.y)
+    ctx.lineTo(p.roofE.x, p.roofE.y)
+    ctx.stroke()
+  })
+
+  rideCanvas('ride-water-tower', 280, 270, (ctx) => {
+    // Tower and stairs
+    ctx.strokeStyle = css(0x61717a)
+    ctx.lineWidth = 6
+    ctx.beginPath()
+    ctx.moveTo(140, 34)
+    ctx.lineTo(110, 252)
+    ctx.moveTo(140, 34)
+    ctx.lineTo(170, 252)
+    ctx.stroke()
+    for (let y = 62; y < 228; y += 24) {
+      ctx.beginPath()
+      ctx.moveTo(116, y)
+      ctx.lineTo(164, y)
+      ctx.stroke()
+    }
+    ctx.fillStyle = css(0xf5d24a)
+    ctx.fillRect(105, 22, 70, 22)
+    // Three winding chutes
+    const colors = [0x26a9e0, 0xf05c55, 0xffc83d]
+    for (let i = 0; i < 3; i++) {
+      const p = new Path2D()
+      p.moveTo(118 + i * 22, 42)
+      p.bezierCurveTo(42 + i * 14, 72, 232 - i * 10, 104, 76 + i * 18, 142)
+      p.bezierCurveTo(22 + i * 18, 170, 234 - i * 22, 196, 72 + i * 58, 238)
+      ctx.strokeStyle = css(0x1f566d)
+      ctx.lineWidth = 18
+      ctx.stroke(p)
+      ctx.strokeStyle = css(colors[i]!)
+      ctx.lineWidth = 12
+      ctx.stroke(p)
+      ctx.strokeStyle = css(0xbfefff)
+      ctx.lineWidth = 2
+      ctx.stroke(p)
+    }
+  })
+
+  rideCanvas('ride-water-racer', 290, 190, (ctx) => {
+    ctx.strokeStyle = css(0x657580)
+    ctx.lineWidth = 5
+    for (const x of [45, 95, 145, 195, 245]) {
+      ctx.beginPath()
+      ctx.moveTo(x, 184)
+      ctx.lineTo(x, 35 + Math.abs(145 - x) * 0.35)
+      ctx.stroke()
+    }
+    const colors = [0x2bbbe8, 0xf0525a, 0xf5cf3c, 0x55b96a]
+    for (let i = 0; i < 4; i++) {
+      const p = new Path2D()
+      p.moveTo(36 + i * 9, 44 + i * 2)
+      p.bezierCurveTo(92, 60 + i * 12, 188, 145 - i * 5, 262 - i * 9, 176)
+      ctx.strokeStyle = css(0x24556a)
+      ctx.lineWidth = 12
+      ctx.stroke(p)
+      ctx.strokeStyle = css(colors[i]!)
+      ctx.lineWidth = 8
+      ctx.stroke(p)
+    }
+    ctx.fillStyle = css(0xf5d24a)
+    ctx.fillRect(22, 28, 58, 22)
+  })
+
+  rideCanvas('ride-splash', 180, 180, (ctx) => {
+    ctx.fillStyle = css(0x725033)
+    ctx.fillRect(84, 42, 9, 124)
+    ctx.fillStyle = css(0xf05c55)
+    ctx.fillRect(36, 68, 105, 9)
+    ctx.fillStyle = css(0x2ea9d2)
+    ctx.beginPath()
+    ctx.arc(52, 62, 18, Math.PI, 0)
+    ctx.lineTo(70, 62)
+    ctx.lineTo(34, 62)
+    ctx.closePath()
+    ctx.fill()
+    ctx.strokeStyle = css(0x65d4f0)
+    ctx.lineWidth = 5
+    for (let i = 0; i < 5; i++) {
+      ctx.beginPath()
+      ctx.moveTo(49 + i * 3, 76)
+      ctx.bezierCurveTo(42 + i * 8, 100, 22 + i * 25, 118, 25 + i * 30, 150)
+      ctx.stroke()
+    }
+    ctx.fillStyle = css(0xf5d24a)
+    ctx.fillRect(58, 126, 65, 10)
+    ctx.fillStyle = css(0x53b96a)
+    ctx.fillRect(106, 72, 9, 84)
+  })
+
+  rideCanvas('ride-park-gate', 220, 125, (ctx) => {
+    drawIsoBox(ctx, 63, 120, 1, 1, 48, 0xf5d04a, 0xd64a42, 0xb53a34)
+    drawIsoBox(ctx, 157, 120, 1, 1, 48, 0xf5d04a, 0xd64a42, 0xb53a34)
+    ctx.strokeStyle = css(0xf5d04a)
+    ctx.lineWidth = 12
+    ctx.beginPath()
+    ctx.arc(110, 83, 48, Math.PI, 0)
+    ctx.stroke()
+    ctx.fillStyle = css(0x24313b)
+    ctx.font = 'bold 13px Courier New'
+    ctx.textAlign = 'center'
+    ctx.fillText('THRILL CITY', 110, 82)
+  })
+
+  rideCanvas('ride-water-gate', 220, 125, (ctx) => {
+    drawIsoBox(ctx, 63, 120, 1, 1, 43, 0x8be2ee, 0x2ca9cc, 0x2389ad)
+    drawIsoBox(ctx, 157, 120, 1, 1, 43, 0x8be2ee, 0x2ca9cc, 0x2389ad)
+    ctx.strokeStyle = css(0xf5d04a)
+    ctx.lineWidth = 11
+    ctx.beginPath()
+    ctx.arc(110, 82, 48, Math.PI, 0)
+    ctx.stroke()
+    ctx.fillStyle = css(0x164b63)
+    ctx.font = 'bold 13px Courier New'
+    ctx.textAlign = 'center'
+    ctx.fillText('SPLASH BAY', 110, 82)
+  })
+
+  activeTextureScene = null
 }
 
 /** Build outfit variants by recoloring the base Emulite person sprite body. */

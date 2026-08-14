@@ -20,7 +20,8 @@ export function mountCreateUI(
   root.innerHTML = `
     <div class="create-panel">
       <p class="brand">Emulites</p>
-      <p class="tagline">Build your little isometric world.</p>
+      <p class="tagline">Build your little isometric world — built on Solana.</p>
+      <p class="chain-badge">Solana</p>
       <label class="field">
         <span>Name</span>
         <input id="emu-name" type="text" maxlength="16" placeholder="Your Emulite" autocomplete="off" />

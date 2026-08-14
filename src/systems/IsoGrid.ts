@@ -1,6 +1,6 @@
 export const TILE_W = 64
 export const TILE_H = 32
-export const MAP_SIZE = 148
+export const MAP_SIZE = 188
 
 export type GridPos = { x: number; y: number }
 export type ScreenPos = { x: number; y: number }

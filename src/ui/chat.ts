@@ -81,6 +81,9 @@ export function mountChat(root: HTMLElement, playerName: string): ChatHandle {
     log.scrollTop = log.scrollHeight
   }
 
+  // Phaser listens for keys on window, so chat text would otherwise trigger game hotkeys.
+  input.addEventListener('keydown', (e) => e.stopPropagation())
+
   form.addEventListener('submit', (e) => {
     e.preventDefault()
     const text = input.value.trim()

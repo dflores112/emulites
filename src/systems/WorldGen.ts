@@ -7,6 +7,18 @@ import {
   TILE_H,
 } from './IsoGrid'
 import type { BuildSystem } from './BuildSystem'
+import {
+  CITIES,
+  CITY_BLOCK,
+  CITY_MARGIN,
+  CITY_STREET,
+  citySize,
+  CORE_POOL,
+  MID_POOL,
+  TOWER_BY_ID,
+  type CitySpec,
+  type TowerSpec,
+} from '../data/city'
 
 export type TerrainKind = 'grass' | 'grass2' | 'path' | 'water' | 'sand' | 'plaza'
 
@@ -14,6 +26,12 @@ type PropSprite = Phaser.GameObjects.Image & { gridX?: number; gridY?: number }
 
 /** District hubs kept clear of wild trees: [cx, cy, radius]. */
 const CLEAR_HUBS: [number, number, number][] = [
+  [164, 31, 24], // Thrill City roller-coaster park
+  [164, 164, 24], // Splash Bay water park
+  [22, 22, 19], // Emulite City skyline
+  [112, 17, 19], // Northport
+  [122, 120, 19], // Southbay
+  [17, 115, 14], // Westend
   [74, 74, 22], // capital
   [74, 52, 12], // north residences
   [96, 74, 12], // east market
@@ -71,10 +89,10 @@ export class WorldGen {
     }
 
     const ponds: [number, number, number, number][] = [
-      [18, 22, 10, 9],
+      [8, 46, 8, 7],
       [40, 12, 8, 7],
       [70, 8, 9, 8],
-      [100, 16, 8, 7],
+      [82, 10, 8, 7],
       [120, 30, 9, 8],
       [12, 55, 8, 8],
       [36, 48, 11, 10], // harbor lake
@@ -82,10 +100,14 @@ export class WorldGen {
       [130, 60, 8, 7],
       [16, 90, 7, 7],
       [60, 120, 9, 8],
-      [100, 118, 10, 9],
-      [128, 100, 8, 8],
+      [86, 120, 9, 8],
+      [120, 88, 8, 7],
       [88, 88, 6, 6],
-      [24, 120, 7, 6],
+      [34, 128, 7, 6],
+      [154, 72, 10, 9],
+      [174, 98, 9, 8],
+      [108, 166, 10, 8],
+      [66, 172, 9, 8],
     ]
     for (const [ox, oy, w, h] of ponds) this.paintWaterPond(ox, oy, w, h)
 
@@ -104,6 +126,15 @@ export class WorldGen {
       [52, 86, 48, 98],
       [98, 98, 74, 110],
       [48, 58, 36, 52],
+      // highways out to the cities
+      [22, 40, 42, 56],
+      [40, 12, 96, 14],
+      [112, 30, 98, 46],
+      [120, 102, 114, 84],
+      [17, 102, 28, 80],
+      // destination park roads
+      [128, 18, 148, 30],
+      [138, 120, 148, 152],
     ]
     for (const [x0, y0, x1, y1] of roads) {
       this.paintPath(this.linePath(x0, y0, x1, y1))
@@ -123,6 +154,9 @@ export class WorldGen {
     this.seedWorkshops(build)
     this.seedSouthGate(build)
     this.seedWestOutpost(build)
+    for (const city of CITIES) this.seedCity(city)
+    this.seedRollerCoasterPark()
+    this.seedWaterPark()
   }
 
   private linePath(x0: number, y0: number, x1: number, y1: number): [number, number][] {
@@ -541,6 +575,417 @@ export class WorldGen {
     this.placeProp(28, 76, 'barrel', true)
     this.placeProp(34, 74, 'stall', true)
     this.placeProp(25, 72, 'rock', true)
+  }
+
+  // --- Theme parks ---
+
+  private seedRollerCoasterPark(): void {
+    const x0 = 146
+    const y0 = 10
+    const x1 = 182
+    const y1 = 52
+
+    this.paintParkGround(x0, y0, x1, y1, 'plaza')
+
+    // Broad midway from the entrance, with two cross-park promenades.
+    for (let y = y0 + 2; y <= y1 - 2; y++) {
+      for (let x = 162; x <= 166; x++) this.overlayTile(x, y, 'path', 0.7)
+    }
+    for (const y of [27, 40]) {
+      for (let x = x0 + 2; x <= x1 - 2; x++) {
+        for (let d = 0; d < 2; d++) this.overlayTile(x, y + d, 'path', 0.7)
+      }
+    }
+
+    // The signature rides.
+    this.placeAttraction(148, 12, 9, 10, 'ride-coaster-loop')
+    this.placeAttraction(158, 11, 17, 10, 'ride-coaster-hill')
+    this.placeAttraction(148, 29, 8, 9, 'ride-ferris')
+    this.placeAttraction(174, 28, 5, 8, 'ride-drop')
+    this.placeAttraction(158, 30, 9, 7, 'ride-coaster-station')
+
+    // Entrance and lively midway furniture.
+    this.placeAttraction(160, 45, 9, 5, 'ride-park-gate', false)
+    for (const [x, y] of [
+      [151, 41],
+      [155, 41],
+      [171, 41],
+      [176, 41],
+      [151, 24],
+      [178, 24],
+    ] as [number, number][]) {
+      this.placeProp(x, y, 'stall', true)
+    }
+    for (const [x, y] of [
+      [158, 25],
+      [169, 25],
+      [158, 39],
+      [169, 39],
+      [155, 48],
+      [173, 48],
+    ] as [number, number][]) {
+      this.placeProp(x, y, 'lamp', true)
+    }
+    this.placeProp(160, 42, 'chair', false)
+    this.placeProp(168, 42, 'chair', false)
+    this.placeProp(153, 38, 'flower', false)
+    this.placeProp(176, 38, 'flower', false)
+
+    this.fencePark(x0, y0, x1, y1, 162, 166)
+  }
+
+  private seedWaterPark(): void {
+    const x0 = 145
+    const y0 = 143
+    const x1 = 183
+    const y1 = 182
+
+    this.paintParkGround(x0, y0, x1, y1, 'sand')
+
+    // Main boardwalk.
+    for (let y = y0 + 2; y <= y1 - 2; y++) {
+      for (let x = 162; x <= 166; x++) this.overlayTile(x, y, 'path', 0.7)
+    }
+    for (let x = x0 + 2; x <= x1 - 2; x++) {
+      this.overlayTile(x, 159, 'path', 0.7)
+      this.overlayTile(x, 160, 'path', 0.7)
+    }
+
+    // Lazy river forms a thick oval around the center of the resort.
+    for (let y = 147; y <= 177; y++) {
+      for (let x = 148; x <= 180; x++) {
+        const nx = (x - 164) / 16
+        const ny = (y - 162) / 14
+        const d = nx * nx + ny * ny
+        if (d > 0.62 && d < 1.02) this.paintParkWater(x, y)
+      }
+    }
+
+    // Wave pool and shallow kids' pool.
+    this.paintPool(168, 163, 11, 8)
+    this.paintPool(149, 166, 7, 5)
+
+    this.placeAttraction(148, 145, 10, 11, 'ride-water-tower')
+    this.placeAttraction(168, 145, 12, 9, 'ride-water-racer')
+    this.placeAttraction(150, 160, 7, 8, 'ride-splash')
+    this.placeAttraction(160, 176, 9, 5, 'ride-water-gate', false)
+
+    // Food court, loungers and tropical landscaping.
+    for (const [x, y] of [
+      [158, 148],
+      [161, 148],
+      [174, 157],
+      [178, 157],
+      [157, 174],
+      [172, 175],
+    ] as [number, number][]) {
+      this.placeProp(x, y, 'stall', true)
+    }
+    for (const [x, y] of [
+      [158, 157],
+      [169, 157],
+      [158, 170],
+      [170, 173],
+      [154, 179],
+      [175, 179],
+    ] as [number, number][]) {
+      this.placeProp(x, y, 'lamp', true)
+    }
+    for (const [x, y] of [
+      [158, 163],
+      [159, 164],
+      [177, 173],
+      [178, 174],
+      [149, 157],
+      [180, 147],
+    ] as [number, number][]) {
+      this.placeProp(x, y, 'bush', false)
+    }
+    this.placeProp(158, 161, 'chair', false)
+    this.placeProp(158, 166, 'chair', false)
+    this.placeProp(179, 159, 'chair', false)
+
+    this.fencePark(x0, y0, x1, y1, 162, 166)
+  }
+
+  private paintParkGround(
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    tex: 'plaza' | 'sand',
+  ): void {
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        if (!inBounds(x, y)) continue
+        this.terrain[y]![x] = tex
+        this.overlayTile(x, y, tex, 0.6)
+      }
+    }
+  }
+
+  private paintParkWater(x: number, y: number): void {
+    if (!inBounds(x, y)) return
+    this.terrain[y]![x] = 'water'
+    this.overlayTile(x, y, 'water', 0.8)
+  }
+
+  private paintPool(ox: number, oy: number, w: number, h: number): void {
+    for (let y = oy; y < oy + h; y++) {
+      for (let x = ox; x < ox + w; x++) {
+        // Rounded pool corners.
+        const corner =
+          (x === ox || x === ox + w - 1) && (y === oy || y === oy + h - 1)
+        if (!corner) this.paintParkWater(x, y)
+      }
+    }
+  }
+
+  private placeAttraction(
+    x0: number,
+    y0: number,
+    w: number,
+    h: number,
+    tex: string,
+    blocks = true,
+  ): void {
+    const x1 = x0 + w - 1
+    const y1 = y0 + h - 1
+    const centerX = (x0 + x1) / 2
+    const centerY = (y0 + y1) / 2
+    const s = gridToScreen(centerX, centerY)
+    const spr = this.scene.add.image(s.x, s.y + TILE_H / 2, tex) as PropSprite
+    spr.setOrigin(0.5, 1)
+    spr.setDepth(depthFor(x1, y1, 7))
+    spr.gridX = centerX
+    spr.gridY = centerY
+    this.props.push(spr)
+
+    if (blocks) {
+      for (let y = y0; y <= y1; y++) {
+        for (let x = x0; x <= x1; x++) {
+          if (inBounds(x, y)) this.blockers.add(this.key(x, y))
+        }
+      }
+    }
+  }
+
+  private fencePark(
+    x0: number,
+    y0: number,
+    x1: number,
+    y1: number,
+    gateX0: number,
+    gateX1: number,
+  ): void {
+    for (let x = x0; x <= x1; x++) {
+      this.placeProp(x, y0, 'fence', true)
+      if (x < gateX0 || x > gateX1) this.placeProp(x, y1, 'fence', true)
+    }
+    for (let y = y0 + 1; y < y1; y++) {
+      this.placeProp(x0, y, 'fence', true)
+      this.placeProp(x1, y, 'fence', true)
+    }
+  }
+
+  // --- Cities ---
+
+  /** Streets, sidewalks, lane paint and a full skyline for one city. */
+  private seedCity(city: CitySpec): void {
+    const { w, h } = citySize(city)
+    const x0 = city.ox
+    const y0 = city.oy
+    const x1 = x0 + w - 1
+    const y1 = y0 + h - 1
+    const step = CITY_BLOCK + CITY_STREET
+    const blockX = (bx: number) => x0 + CITY_MARGIN + bx * step
+    const blockY = (by: number) => y0 + CITY_MARGIN + by * step
+
+    const blockCols = new Set<number>()
+    for (let bx = 0; bx < city.blocksX; bx++) {
+      for (let i = 0; i < CITY_BLOCK; i++) blockCols.add(blockX(bx) + i)
+    }
+    const blockRows = new Set<number>()
+    for (let by = 0; by < city.blocksY; by++) {
+      for (let i = 0; i < CITY_BLOCK; i++) blockRows.add(blockY(by) + i)
+    }
+    const onBlock = (x: number, y: number) => blockCols.has(x) && blockRows.has(y)
+
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        if (!inBounds(x, y) || this.isWater(x, y)) continue
+        this.terrain[y]![x] = 'path'
+        this.overlayTile(x, y, onBlock(x, y) ? 'sidewalk' : 'asphalt', 0.55)
+      }
+    }
+
+    // Center lane dashes, skipped at intersections
+    const bandStartY = (by: number) => (by === 0 ? y0 : blockY(by - 1) + CITY_BLOCK)
+    const bandStartX = (bx: number) => (bx === 0 ? x0 : blockX(bx - 1) + CITY_BLOCK)
+
+    for (let by = 0; by <= city.blocksY; by++) {
+      const my = bandStartY(by) + 1
+      for (let x = x0; x <= x1; x++) {
+        if (!blockCols.has(x) || (x + my) % 2 !== 0) continue
+        if (this.isWater(x, my)) continue
+        this.overlayTile(x, my, 'laneX', 0.6)
+      }
+    }
+    for (let bx = 0; bx <= city.blocksX; bx++) {
+      const mx = bandStartX(bx) + 1
+      for (let y = y0; y <= y1; y++) {
+        if (!blockRows.has(y) || (mx + y) % 2 !== 0) continue
+        if (this.isWater(mx, y)) continue
+        this.overlayTile(mx, y, 'laneY', 0.6)
+      }
+    }
+
+    // Crosswalks where sidewalks meet the road
+    for (let by = 0; by <= city.blocksY; by++) {
+      const band = bandStartY(by)
+      for (let bx = 0; bx < city.blocksX; bx++) {
+        for (const cx of [blockX(bx), blockX(bx) + CITY_BLOCK - 1]) {
+          for (let i = 0; i < CITY_STREET; i++) {
+            if (!inBounds(cx, band + i) || this.isWater(cx, band + i)) continue
+            this.overlayTile(cx, band + i, 'crosswalk', 0.7)
+          }
+        }
+      }
+    }
+
+    // Traffic
+    const cars = ['car-taxi', 'car-red', 'car-blue', 'car-taxi']
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        if (onBlock(x, y) || !inBounds(x, y) || this.isWater(x, y)) continue
+        const hit = this.hash(x, y, 91)
+        if (hit % 17 !== 0) continue
+        this.placeProp(x, y, cars[hit % cars.length]!, false)
+      }
+    }
+
+    for (let by = 0; by < city.blocksY; by++) {
+      for (let bx = 0; bx < city.blocksX; bx++) {
+        this.seedCityBlock(city, bx, by, blockX(bx), blockY(by))
+      }
+    }
+  }
+
+  private seedCityBlock(
+    city: CitySpec,
+    bx: number,
+    by: number,
+    ox: number,
+    oy: number,
+  ): void {
+    const midX = (city.blocksX - 1) / 2
+    const midY = (city.blocksY - 1) / 2
+    const dist = Math.abs(bx - midX) + Math.abs(by - midY)
+
+    if (city.tier === 'metro' && dist < 0.25) {
+      this.cityPark(ox, oy)
+      return
+    }
+
+    const pool = (dist <= 1 ? CORE_POOL : MID_POOL)[city.tier]
+    const slots: [number, number][] = [
+      [0, 0],
+      [4, 0],
+      [0, 4],
+      [4, 4],
+    ]
+
+    for (let i = 0; i < slots.length; i++) {
+      const [sx, sy] = slots[i]!
+      const h = this.hash(ox + sx, oy + sy, i)
+      if (h % 13 === 0) {
+        this.cityPocket(ox + sx, oy + sy)
+        continue
+      }
+      const spec = TOWER_BY_ID[pool[h % pool.length]!]!
+      const offX = spec.w < 3 && h % 2 === 0 ? 1 : 0
+      const offY = spec.d < 3 && h % 3 === 0 ? 1 : 0
+      this.placeTower(ox + sx + offX, oy + sy + offY, spec)
+    }
+
+    this.placeProp(ox - 1, oy - 1, 'lamp', true)
+    this.placeProp(ox + CITY_BLOCK, oy + CITY_BLOCK, 'lamp', true)
+    const vendor = this.hash(ox, oy, 5)
+    if (vendor % 3 === 0) this.placeProp(ox + 3, oy - 1, 'stall', true)
+    if (vendor % 4 === 0) this.placeProp(ox - 1, oy + 4, 'barrel', true)
+  }
+
+  /** Green square in the middle of the metro grid. */
+  private cityPark(ox: number, oy: number): void {
+    for (let y = oy; y < oy + CITY_BLOCK; y++) {
+      for (let x = ox; x < ox + CITY_BLOCK; x++) {
+        if (!inBounds(x, y) || this.isWater(x, y)) continue
+        this.overlayTile(x, y, (x + y) % 3 === 0 ? 'grass2' : 'grass', 0.6)
+      }
+    }
+    for (const [dx, dy] of [
+      [1, 1],
+      [5, 1],
+      [1, 5],
+      [5, 5],
+      [3, 0],
+      [0, 3],
+      [6, 3],
+    ] as [number, number][]) {
+      this.placeTree(ox + dx, oy + dy)
+    }
+    this.placeProp(ox + 3, oy + 3, 'well', true, 1)
+    this.placeProp(ox + 2, oy + 5, 'chair', false)
+    this.placeProp(ox + 4, oy + 5, 'chair', false)
+    this.placeProp(ox + 3, oy + 6, 'flower', false)
+    this.placeProp(ox + 5, oy + 3, 'bush', false)
+  }
+
+  /** Small paved plaza where a tower slot is skipped. */
+  private cityPocket(ox: number, oy: number): void {
+    this.placeProp(ox + 1, oy + 1, 'lamp', true)
+    this.placeProp(ox, oy + 2, 'bush', false)
+    this.placeProp(ox + 2, oy, 'flower', false)
+    this.placeProp(ox + 2, oy + 2, 'chair', false)
+  }
+
+  private placeTower(x0: number, y0: number, spec: TowerSpec): void {
+    const x1 = x0 + spec.w - 1
+    const y1 = y0 + spec.d - 1
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) {
+        if (!inBounds(x, y) || this.isWater(x, y) || this.hasTree(x, y)) return
+        if (this.blockers.has(this.key(x, y))) return
+      }
+    }
+
+    const s = gridToScreen(x1, y1)
+    const spr = this.scene.add.image(s.x, s.y + TILE_H / 2, `tower-${spec.id}`) as PropSprite
+    spr.setOrigin(spec.w / (spec.w + spec.d), 1)
+    spr.setDepth(depthFor(x1, y1, 7))
+    spr.gridX = x1
+    spr.gridY = y1
+    this.props.push(spr)
+
+    for (let y = y0; y <= y1; y++) {
+      for (let x = x0; x <= x1; x++) this.blockers.add(this.key(x, y))
+    }
+  }
+
+  private hash(a: number, b: number, c: number): number {
+    let h =
+      Math.imul(a | 0, 374761393) ^ Math.imul(b | 0, 668265263) ^ Math.imul(c | 0, 2246822519)
+    h = Math.imul(h ^ (h >>> 13), 1274126177)
+    return (h ^ (h >>> 16)) >>> 0
+  }
+
+  private overlayTile(x: number, y: number, tex: string, layer: number): void {
+    const s = gridToScreen(x, y)
+    this.scene.add
+      .image(s.x, s.y, tex)
+      .setOrigin(0.5, 0.5)
+      .setScale(1.06)
+      .setDepth(depthFor(x, y, layer))
   }
 
   // --- Helpers ---

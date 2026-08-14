@@ -123,7 +123,6 @@ export class BuildSystem {
   }
 
   tryRemoveAt(worldX: number, worldY: number): boolean {
-    if (!this.enabled) return false
     const raw = screenToGrid(worldX, worldY)
     const g = snapGrid(raw.x, raw.y)
     if (!inBounds(g.x, g.y)) return false

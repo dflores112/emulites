@@ -19,6 +19,7 @@ import { mountHud } from '../ui/hud'
 import { hotbarIconsFromScene } from '../ui/hotbarIcons'
 import { mountChat, type ChatHandle } from '../ui/chat'
 import type { ItemId } from '../data/catalog'
+import { LANDMARKS, type Landmark } from '../data/landmarks'
 import { WorldGen } from '../systems/WorldGen'
 import { NpcSystem } from '../systems/NpcSystem'
 import { AnimalSystem } from '../systems/AnimalSystem'
@@ -48,7 +49,7 @@ export class WorldScene extends Phaser.Scene {
   private chat: ChatHandle | null = null
   private saveTimer = 0
   private playerFrac = { x: 74.5, y: 76.5 }
-  private dragMode = false
+  private dragMode = true
 
   private dragging = false
   private dragMoved = false
@@ -151,12 +152,18 @@ export class WorldScene extends Phaser.Scene {
       this.build.tryRemoveAt(this.player.x, this.player.y - TILE_H / 4)
       this.persist()
     })
-    kb.on('keydown-C', () => {
-      this.cameras.main.pan(this.player.x, this.player.y, 250, 'Sine.easeInOut')
-    })
+    kb.on('keydown-C', () => this.findPlayer())
     kb.on('keydown-H', () => {
-      this.setDragMode(!this.dragMode)
-      this.hud?.setDragMode(this.dragMode)
+      // Grab is the default — H always returns to pan, never to place
+      this.setDragMode(true)
+      this.hud?.setDragMode(true)
+    })
+    kb.on('keydown-ESC', () => {
+      this.setDragMode(true)
+      this.hud?.setDragMode(true)
+    })
+    kb.on('keydown-M', () => {
+      this.hud?.toggleTravel()
     })
 
     // Zoom toward pointer
@@ -195,10 +202,13 @@ export class WorldScene extends Phaser.Scene {
 
     this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       if (pointer.rightButtonDown() || pointer.button === 2) {
-        if (this.dragMode) return
+        // Right-click removes even while panning; cancel an unfinished drag first
+        this.dragging = false
+        this.dragMoved = false
         const worldPt = this.cameras.main.getWorldPoint(pointer.x, pointer.y)
         this.build.tryRemoveAt(worldPt.x, worldPt.y)
         this.persist()
+        if (this.dragMode) this.setCanvasCursor('grab')
         return
       }
       if (pointer.button === 0 || pointer.leftButtonDown()) {
@@ -235,18 +245,23 @@ export class WorldScene extends Phaser.Scene {
       this.hud = mountHud(hudRoot, {
         name,
         selected: this.build.getSelected(),
-        dragMode: false,
+        dragMode: true,
         icons: hotbarIconsFromScene(this),
+        landmarks: LANDMARKS,
         onSelect: (id: ItemId) => {
+          // Hotbar pick enters place mode; Grab / H returns to pan
           this.setDragMode(false)
           this.build.setSelected(id)
         },
         onDragMode: (on) => this.setDragMode(on),
+        onTravel: (mark) => this.travelTo(mark),
+        onFindMe: () => this.findPlayer(),
         onNewGame: () => {
           this.goToCreateScreen()
         },
       })
       this.chat = mountChat(hudRoot, name)
+      this.setDragMode(true)
     }
 
     this.events.on('build-selected', (id: ItemId) => {
@@ -319,6 +334,50 @@ export class WorldScene extends Phaser.Scene {
     if (this.world.isBlockedTerrain(g.x, g.y)) return false
     if (this.build.isBlocked(g.x, g.y)) return false
     return true
+  }
+
+  /** Recentre on the player and flash a marker so they stand out in a crowd. */
+  private findPlayer(): void {
+    this.cameras.main.pan(this.player.x, this.player.y, 250, 'Sine.easeInOut')
+    this.pingPlayer()
+  }
+
+  private pingPlayer(): void {
+    const ping = this.add.ellipse(this.player.x, this.player.y, TILE_W, TILE_H, 0xffe9a8, 0)
+    ping.setStrokeStyle(2, 0xffe9a8, 1)
+    ping.setDepth(depthFor(this.playerFrac.x, this.playerFrac.y, 9))
+    this.tweens.add({
+      targets: ping,
+      scale: 2.6,
+      alpha: 0,
+      duration: 700,
+      ease: 'Sine.easeOut',
+      onComplete: () => ping.destroy(),
+    })
+  }
+
+  /** Fast travel: drop the player on the nearest open tile and swing the camera over. */
+  private travelTo(mark: Landmark): void {
+    const spot = this.findWalkableNear(mark.gx + 0.5, mark.gy + 0.5)
+    if (!spot) return
+    this.playerFrac = spot
+    this.syncPlayerSprite()
+    this.cameras.main.pan(this.player.x, this.player.y, 420, 'Sine.easeInOut')
+    this.pingPlayer()
+    this.persist()
+  }
+
+  private findWalkableNear(x: number, y: number): { x: number; y: number } | null {
+    if (this.canWalk(x, y)) return { x, y }
+    for (let r = 1; r <= 30; r++) {
+      for (let dy = -r; dy <= r; dy++) {
+        for (let dx = -r; dx <= r; dx++) {
+          if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue
+          if (this.canWalk(x + dx, y + dy)) return { x: x + dx, y: y + dy }
+        }
+      }
+    }
+    return null
   }
 
   private tryMove(gdx: number, gdy: number): void {
