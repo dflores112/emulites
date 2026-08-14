@@ -1,8 +1,6 @@
 <p align="center">
-  <img src="public/favicon.png" alt="Emulites" width="72" height="72" />
+  <img src="docs/emulites-banner.jpg" alt="Emulites" width="720" />
 </p>
-
-<h1 align="center">Emulites</h1>
 
 <p align="center">
   <strong>A tiny isometric pixel world you build in the browser.</strong><br />
