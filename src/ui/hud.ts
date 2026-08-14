@@ -3,6 +3,13 @@ import type { HotbarIcons } from './hotbarIcons'
 
 const SCROLL_STEP = 180
 
+export type PadDir = {
+  left: boolean
+  right: boolean
+  up: boolean
+  down: boolean
+}
+
 export function mountHud(
   root: HTMLElement,
   opts: {
@@ -17,20 +24,30 @@ export function mountHud(
 ): {
   setSelected: (id: ItemId) => void
   setDragMode: (on: boolean) => void
+  getPad: () => PadDir
   destroy: () => void
 } {
+  const pad: PadDir = { left: false, right: false, up: false, down: false }
+
   root.innerHTML = `
     <div class="hud-top">
       <span class="hud-brand">Emulites</span>
       <span class="hud-name">${escapeHtml(opts.name)}</span>
     </div>
     ${opts.onNewGame ? '<button type="button" class="hud-new" id="hud-new">New Game</button>' : ''}
+    <div class="dpad" id="dpad" aria-label="Move">
+      <button type="button" class="dpad-btn dpad-up" data-dir="up" aria-label="Up">▲</button>
+      <button type="button" class="dpad-btn dpad-left" data-dir="left" aria-label="Left">◀</button>
+      <button type="button" class="dpad-btn dpad-right" data-dir="right" aria-label="Right">▶</button>
+      <button type="button" class="dpad-btn dpad-down" data-dir="down" aria-label="Down">▼</button>
+      <span class="dpad-center" aria-hidden="true"></span>
+    </div>
     <div class="hotbar-wrap" id="hotbar-wrap">
       <button type="button" class="hotbar-nav hotbar-nav-left" id="hotbar-left" aria-label="Scroll hotbar left">‹</button>
       <div class="hotbar" id="hotbar"></div>
       <button type="button" class="hotbar-nav hotbar-nav-right" id="hotbar-right" aria-label="Scroll hotbar right">›</button>
     </div>
-    <p class="hud-help">WASD move · scroll zoom · C center · build keys on icons · Drag / H to pan · click place · right-click remove</p>
+    <p class="hud-help">WASD / arrows move · scroll zoom · C center · build keys on icons · Drag / H to pan · click place · right-click remove</p>
   `
   root.classList.remove('hidden')
   root.setAttribute('aria-hidden', 'false')
@@ -41,6 +58,45 @@ export function mountHud(
       opts.onNewGame?.()
     }
   })
+
+  const dpad = root.querySelector('#dpad') as HTMLElement
+  const setDir = (dir: keyof PadDir, on: boolean) => {
+    pad[dir] = on
+  }
+  const clearPad = () => {
+    pad.left = pad.right = pad.up = pad.down = false
+    dpad.querySelectorAll('.dpad-btn').forEach((el) => el.classList.remove('active'))
+  }
+
+  dpad.querySelectorAll('.dpad-btn').forEach((btn) => {
+    const el = btn as HTMLButtonElement
+    const dir = el.dataset.dir as keyof PadDir
+    const press = (e: Event) => {
+      e.preventDefault()
+      e.stopPropagation()
+      setDir(dir, true)
+      el.classList.add('active')
+    }
+    const release = (e: Event) => {
+      e.preventDefault()
+      e.stopPropagation()
+      setDir(dir, false)
+      el.classList.remove('active')
+    }
+    el.addEventListener('pointerdown', (e) => {
+      press(e)
+      el.setPointerCapture((e as PointerEvent).pointerId)
+    })
+    el.addEventListener('pointerup', release)
+    el.addEventListener('pointercancel', release)
+    el.addEventListener('lostpointercapture', () => {
+      setDir(dir, false)
+      el.classList.remove('active')
+    })
+    el.addEventListener('contextmenu', (e) => e.preventDefault())
+  })
+  window.addEventListener('blur', clearPad)
+
   const hotbar = root.querySelector('#hotbar') as HTMLElement
   const leftBtn = root.querySelector('#hotbar-left') as HTMLButtonElement
   const rightBtn = root.querySelector('#hotbar-right') as HTMLButtonElement
@@ -140,7 +196,12 @@ export function mountHud(
       dragMode = on
       render()
     },
+    getPad() {
+      return { ...pad }
+    },
     destroy() {
+      window.removeEventListener('blur', clearPad)
+      clearPad()
       root.innerHTML = ''
       root.classList.add('hidden')
       root.setAttribute('aria-hidden', 'true')

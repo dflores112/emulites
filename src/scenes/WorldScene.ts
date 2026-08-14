@@ -47,7 +47,7 @@ export class WorldScene extends Phaser.Scene {
   private hud: ReturnType<typeof mountHud> | null = null
   private chat: ChatHandle | null = null
   private saveTimer = 0
-  private playerFrac = { x: 42.5, y: 48.5 }
+  private playerFrac = { x: 74.5, y: 76.5 }
   private dragMode = false
 
   private dragging = false
@@ -107,7 +107,7 @@ export class WorldScene extends Phaser.Scene {
     getOutfit(outfitId)
 
     if (!this.canWalk(this.playerFrac.x, this.playerFrac.y)) {
-      this.playerFrac = { x: 42.5, y: 48.5 }
+      this.playerFrac = { x: 74.5, y: 76.5 }
     }
 
     const start = gridToScreen(this.playerFrac.x, this.playerFrac.y)
@@ -129,9 +129,9 @@ export class WorldScene extends Phaser.Scene {
       .setDepth(10001)
 
     this.npcs = new NpcSystem(this, this.world, this.build)
-    this.npcs.spawn(22)
+    this.npcs.spawn(40)
     this.animals = new AnimalSystem(this, this.world, this.build)
-    this.animals.spawn(35)
+    this.animals.spawn(55)
 
     // Free camera: start centered on player, no hard follow
     this.cameras.main.setZoom(0.85)
@@ -283,10 +283,11 @@ export class WorldScene extends Phaser.Scene {
     if (!typing) {
       let dx = 0
       let dy = 0
-      if (this.cursors.left?.isDown || this.wasd.A.isDown) dx -= 1
-      if (this.cursors.right?.isDown || this.wasd.D.isDown) dx += 1
-      if (this.cursors.up?.isDown || this.wasd.W.isDown) dy -= 1
-      if (this.cursors.down?.isDown || this.wasd.S.isDown) dy += 1
+      const pad = this.hud?.getPad()
+      if (this.cursors.left?.isDown || this.wasd.A.isDown || pad?.left) dx -= 1
+      if (this.cursors.right?.isDown || this.wasd.D.isDown || pad?.right) dx += 1
+      if (this.cursors.up?.isDown || this.wasd.W.isDown || pad?.up) dy -= 1
+      if (this.cursors.down?.isDown || this.wasd.S.isDown || pad?.down) dy += 1
 
       if (dx !== 0 || dy !== 0) {
         const len = Math.hypot(dx, dy) || 1
