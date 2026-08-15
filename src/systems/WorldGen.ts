@@ -225,7 +225,6 @@ export class WorldGen {
         const spr = this.scene.add
           .image(s.x, s.y, tex)
           .setOrigin(0.5, 0.5)
-          .setScale(1.06)
           .setDepth(depthFor(x, y, 0))
         if (kind === 'water') {
           spr.setData('water', true)
@@ -434,7 +433,6 @@ export class WorldGen {
         this.scene.add
           .image(s.x, s.y, 'sand')
           .setOrigin(0.5, 0.5)
-          .setScale(1.06)
           .setDepth(depthFor(x, y, 0.5))
       }
     }
@@ -984,7 +982,6 @@ export class WorldGen {
     this.scene.add
       .image(s.x, s.y, tex)
       .setOrigin(0.5, 0.5)
-      .setScale(1.06)
       .setDepth(depthFor(x, y, layer))
   }
 
@@ -999,7 +996,6 @@ export class WorldGen {
         this.scene.add
           .image(s.x, s.y, 'plaza')
           .setOrigin(0.5, 0.5)
-          .setScale(1.06)
           .setDepth(depthFor(x, y, 0.5))
       }
     }
@@ -1024,7 +1020,6 @@ export class WorldGen {
       this.scene.add
         .image(s.x, s.y, 'path')
         .setOrigin(0.5, 0.5)
-        .setScale(1.06)
         .setDepth(depthFor(x, y, 0.4))
     }
   }
@@ -1037,7 +1032,6 @@ export class WorldGen {
         this.scene.add
           .image(s.x, s.y, 'crop')
           .setOrigin(0.5, 0.5)
-          .setScale(1.04)
           .setDepth(depthFor(x, y, 1))
       }
     }

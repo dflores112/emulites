@@ -156,7 +156,6 @@ body {
 }
 
 #phaser-host canvas {
-  image-rendering: pixelated;
   display: block;
 }
 

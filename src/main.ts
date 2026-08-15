@@ -18,9 +18,11 @@ const config: Phaser.Types.Core.GameConfig = {
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
   render: {
-    pixelArt: true,
-    antialias: false,
-    roundPixels: true,
+    // Smooth filtering: the world art is vector-drawn, and nearest-neighbour
+    // upscaling on a high-DPI screen turns it into chunky blocks. Character
+    // sprites opt back into NEAREST individually, since they are true pixel art.
+    antialias: true,
+    roundPixels: false,
   },
   scene: [CreateScene, WorldScene],
   input: {

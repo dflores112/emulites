@@ -10,6 +10,7 @@ import {
   TILE_W,
 } from './IsoGrid'
 import { PLAYER_DISPLAY_SCALE } from './Textures'
+import { NAMEPLATE_STYLE } from './art'
 import type { WorldGen } from './WorldGen'
 import type { BuildSystem } from './BuildSystem'
 
@@ -76,13 +77,7 @@ export class NpcSystem {
         .setDepth(depthFor(gx, gy, 8))
 
       const tag = this.scene.add
-        .text(sprite.x, sprite.y - sprite.displayHeight - 4, name, {
-          fontFamily: 'Courier New, monospace',
-          fontSize: '11px',
-          color: '#e8f0ff',
-          stroke: '#000000',
-          strokeThickness: 3,
-        })
+        .text(sprite.x, sprite.y - sprite.displayHeight - 4, name, NAMEPLATE_STYLE)
         .setOrigin(0.5, 1)
         .setDepth(10002)
 

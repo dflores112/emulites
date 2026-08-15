@@ -10,6 +10,15 @@ import {
 } from '../data/outfits'
 import type { ItemId } from '../data/catalog'
 import { TOWERS, type TowerSpec } from '../data/city'
+import {
+  PALETTE,
+  css,
+  drawConifer,
+  drawIsoHouseShell,
+  drawShrub,
+  fillDiamond,
+  speckleDiamond,
+} from './art'
 
 export const PLAYER_DISPLAY_SCALE = 4
 
@@ -21,34 +30,11 @@ function hexToRgb(hex: number): { r: number; g: number; b: number } {
   }
 }
 
-function fillDiamond(
-  ctx: CanvasRenderingContext2D,
-  cx: number,
-  cy: number,
-  w: number,
-  h: number,
-  color: string,
-) {
-  ctx.beginPath()
-  ctx.moveTo(cx, cy - h / 2)
-  ctx.lineTo(cx + w / 2, cy)
-  ctx.lineTo(cx, cy + h / 2)
-  ctx.lineTo(cx - w / 2, cy)
-  ctx.closePath()
-  ctx.fillStyle = color
-  ctx.fill()
-}
-
 function makeCanvas(w: number, h: number): HTMLCanvasElement {
   const c = document.createElement('canvas')
   c.width = w
   c.height = h
   return c
-}
-
-function css(hex: number): string {
-  const { r, g, b } = hexToRgb(hex)
-  return `rgb(${r},${g},${b})`
 }
 
 function register(scene: Phaser.Scene, key: string, canvas: HTMLCanvasElement) {
@@ -78,11 +64,36 @@ export function generateTextures(scene: Phaser.Scene): void {
     register(scene, key, c)
   }
 
+  // Speckled tiles: chunky two-tone noise is what reads as pixel ground cover.
+  const speckTile = (
+    key: string,
+    base: number,
+    light: number,
+    dark: number,
+    seed: number,
+  ) => {
+    const pad = 8
+    const c = makeCanvas(TILE_W + pad, TILE_H + pad)
+    const ctx = c.getContext('2d')!
+    speckleDiamond(
+      ctx,
+      (TILE_W + pad) / 2,
+      (TILE_H + pad) / 2,
+      TILE_W + 6,
+      TILE_H + 6,
+      base,
+      light,
+      dark,
+      seed,
+    )
+    register(scene, key, c)
+  }
+
   softTile('asphalt', 0x3a3f45, 0x43484f, 0x33373c)
   softTile('sidewalk', 0x9c9c98, 0xacaca8, 0x8e8e8a)
-  softTile('grass', 0x5faa52, 0x68b55c, 0x569a48)
-  softTile('grass2', 0x5ca64f, 0x66b259, 0x5aad50)
-  softTile('path', 0xb89a62, 0xc8ae72, 0x9a7e4a)
+  speckTile('grass', PALETTE.grassBase, PALETTE.grassLight, PALETTE.grassDark, 1)
+  speckTile('grass2', PALETTE.grass2Base, PALETTE.grass2Light, PALETTE.grass2Dark, 7)
+  speckTile('path', PALETTE.dirtBase, PALETTE.dirtLight, PALETTE.dirtDark, 3)
   softTile('sand', 0xd8c894, 0xe6d8a8)
   softTile('plaza', 0xb8b0a0, 0xc8c0b0, 0xa09888)
 
@@ -106,24 +117,11 @@ export function generateTextures(scene: Phaser.Scene): void {
     register(scene, 'water', c)
   }
 
-  // Tree
+  // Tree — stepped conifer
   {
     const c = makeCanvas(56, 72)
     const ctx = c.getContext('2d')!
-    ctx.fillStyle = css(0x6b4a2a)
-    ctx.fillRect(24, 46, 8, 18)
-    ctx.fillStyle = css(0x55381e)
-    ctx.fillRect(28, 46, 4, 18)
-    const drawCanopy = (cx: number, cy: number, r: number, color: number) => {
-      ctx.beginPath()
-      ctx.arc(cx, cy, r, 0, Math.PI * 2)
-      ctx.fillStyle = css(color)
-      ctx.fill()
-    }
-    drawCanopy(28, 34, 18, 0x2f6b38)
-    drawCanopy(20, 30, 12, 0x3d8a48)
-    drawCanopy(36, 28, 13, 0x3d8a48)
-    drawCanopy(28, 22, 11, 0x4ea85a)
+    drawConifer(ctx, 28, 72)
     register(scene, 'tree', c)
   }
 
@@ -131,16 +129,7 @@ export function generateTextures(scene: Phaser.Scene): void {
   {
     const c = makeCanvas(40, 28)
     const ctx = c.getContext('2d')!
-    ctx.beginPath()
-    ctx.arc(14, 16, 10, 0, Math.PI * 2)
-    ctx.arc(26, 15, 11, 0, Math.PI * 2)
-    ctx.arc(20, 12, 9, 0, Math.PI * 2)
-    ctx.fillStyle = css(0x3d8a48)
-    ctx.fill()
-    ctx.fillStyle = css(0x57b064)
-    ctx.beginPath()
-    ctx.arc(18, 11, 5, 0, Math.PI * 2)
-    ctx.fill()
+    drawShrub(ctx, 20, 28, 26, 18)
     register(scene, 'bush', c)
   }
 
@@ -170,39 +159,15 @@ export function generateTextures(scene: Phaser.Scene): void {
     const c = makeCanvas(TILE_W, TILE_H + wallH)
     const ctx = c.getContext('2d')!
     const topY = 10
-    // left face
-    ctx.beginPath()
-    ctx.moveTo(2, topY)
-    ctx.lineTo(TILE_W / 2, topY + TILE_H / 2)
-    ctx.lineTo(TILE_W / 2, topY + TILE_H / 2 + wallH - 8)
-    ctx.lineTo(2, topY + wallH - 8)
-    ctx.closePath()
-    ctx.fillStyle = css(0xe8d4b0)
-    ctx.fill()
-    // right face
-    ctx.beginPath()
-    ctx.moveTo(TILE_W - 2, topY)
-    ctx.lineTo(TILE_W / 2, topY + TILE_H / 2)
-    ctx.lineTo(TILE_W / 2, topY + TILE_H / 2 + wallH - 8)
-    ctx.lineTo(TILE_W - 2, topY + wallH - 8)
-    ctx.closePath()
-    ctx.fillStyle = css(0xd4be96)
-    ctx.fill()
-    // roof top diamond
-    fillDiamond(ctx, TILE_W / 2, topY, TILE_W - 4, TILE_H - 2, css(0xb05040))
-    fillDiamond(ctx, TILE_W / 2, topY - 1, TILE_W - 14, TILE_H - 8, css(0xc86048))
+    drawIsoHouseShell(ctx, TILE_W, TILE_H, wallH, topY)
     // window on left face
-    ctx.fillStyle = css(0x6ec8e8)
+    ctx.fillStyle = css(PALETTE.trim)
+    ctx.fillRect(11, topY + 17, 12, 12)
+    ctx.fillStyle = css(PALETTE.windowPane)
     ctx.fillRect(12, topY + 18, 10, 10)
-    ctx.strokeStyle = css(0x6a4a28)
-    ctx.lineWidth = 1
-    ctx.strokeRect(12, topY + 18, 10, 10)
-    ctx.beginPath()
-    ctx.moveTo(17, topY + 18)
-    ctx.lineTo(17, topY + 28)
-    ctx.moveTo(12, topY + 23)
-    ctx.lineTo(22, topY + 23)
-    ctx.stroke()
+    ctx.fillStyle = css(PALETTE.trim)
+    ctx.fillRect(16, topY + 18, 2, 10)
+    ctx.fillRect(12, topY + 22, 10, 2)
     register(scene, 'wall', c)
   }
 
@@ -212,30 +177,13 @@ export function generateTextures(scene: Phaser.Scene): void {
     const c = makeCanvas(TILE_W, TILE_H + wallH)
     const ctx = c.getContext('2d')!
     const topY = 10
-    ctx.beginPath()
-    ctx.moveTo(2, topY)
-    ctx.lineTo(TILE_W / 2, topY + TILE_H / 2)
-    ctx.lineTo(TILE_W / 2, topY + TILE_H / 2 + wallH - 8)
-    ctx.lineTo(2, topY + wallH - 8)
-    ctx.closePath()
-    ctx.fillStyle = css(0xe8d4b0)
-    ctx.fill()
-    ctx.beginPath()
-    ctx.moveTo(TILE_W - 2, topY)
-    ctx.lineTo(TILE_W / 2, topY + TILE_H / 2)
-    ctx.lineTo(TILE_W / 2, topY + TILE_H / 2 + wallH - 8)
-    ctx.lineTo(TILE_W - 2, topY + wallH - 8)
-    ctx.closePath()
-    ctx.fillStyle = css(0xd4be96)
-    ctx.fill()
-    fillDiamond(ctx, TILE_W / 2, topY, TILE_W - 4, TILE_H - 2, css(0xb05040))
-    fillDiamond(ctx, TILE_W / 2, topY - 1, TILE_W - 14, TILE_H - 8, css(0xc86048))
+    drawIsoHouseShell(ctx, TILE_W, TILE_H, wallH, topY)
     // door panel
     const dx = TILE_W / 2 - 9
     const dy = topY + 14
-    ctx.fillStyle = css(0x5a3820)
+    ctx.fillStyle = css(PALETTE.trimDark)
     ctx.fillRect(dx - 1, dy - 1, 20, wallH - 18)
-    ctx.fillStyle = css(0x8a5a30)
+    ctx.fillStyle = css(PALETTE.trim)
     ctx.fillRect(dx, dy, 18, wallH - 20)
     ctx.fillStyle = css(0x6a4424)
     ctx.fillRect(dx + 2, dy + 4, 6, 14)
@@ -444,7 +392,7 @@ export function generateTextures(scene: Phaser.Scene): void {
     ctx.lineTo(42, 18)
     ctx.lineTo(6, 18)
     ctx.closePath()
-    ctx.fillStyle = css(0xb05040)
+    ctx.fillStyle = css(PALETTE.roof)
     ctx.fill()
     // bucket
     ctx.fillStyle = css(0x8a5a30)
@@ -1276,6 +1224,9 @@ export function generatePlayerTextures(scene: Phaser.Scene): Record<OutfitId, st
     ctx.putImageData(img, 0, HAT_PAD)
     drawHat(ctx, outfit, HAT_PAD)
     register(scene, `player-${outfit.id}`, c)
+    // Characters are true pixel art blown up 4x, so keep them crisp even though
+    // the rest of the world renders with smooth filtering.
+    scene.textures.get(`player-${outfit.id}`).setFilter(Phaser.Textures.FilterMode.NEAREST)
     previews[outfit.id] = c.toDataURL('image/png')
   }
 

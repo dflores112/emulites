@@ -13,6 +13,7 @@ import {
   worldBounds,
 } from '../systems/IsoGrid'
 import { BuildSystem } from '../systems/BuildSystem'
+import { NAMEPLATE_STYLE, PALETTE } from '../systems/art'
 import { loadSave, writeSave, clearSave, type SaveData } from '../systems/SaveSystem'
 import { getOutfit, type OutfitId } from '../data/outfits'
 import { mountHud } from '../ui/hud'
@@ -26,8 +27,12 @@ import { AnimalSystem } from '../systems/AnimalSystem'
 
 const SPEED = 120
 const SAVE_EVERY_MS = 1500
-const ZOOM_MIN = 0.35
-const ZOOM_MAX = 2.2
+/**
+ * Only clean ratios: nearest-neighbour sampling at fractional zoom drops and
+ * doubles pixel rows unevenly, which makes the pixel art look chewed up.
+ */
+const ZOOM_STEPS = [0.5, 0.75, 1, 1.5, 2, 3]
+const ZOOM_DEFAULT = 1
 const DRAG_THRESHOLD = 8
 
 export class WorldScene extends Phaser.Scene {
@@ -83,8 +88,8 @@ export class WorldScene extends Phaser.Scene {
 
     const bounds = worldBounds()
     this.cameras.main.setBounds(0, 0, bounds.width, bounds.height)
-    this.cameras.main.setBackgroundColor(0x1e3a28)
-    this.cameras.main.setRoundPixels(true)
+    this.cameras.main.setBackgroundColor(PALETTE.grassDark)
+    this.cameras.main.setRoundPixels(false)
 
     this.build = new BuildSystem(this)
     this.world = new WorldGen(this)
@@ -120,11 +125,8 @@ export class WorldScene extends Phaser.Scene {
 
     this.nameTag = this.add
       .text(start.x, start.y - this.player.displayHeight - 4, name, {
-        fontFamily: 'Courier New, monospace',
+        ...NAMEPLATE_STYLE,
         fontSize: '12px',
-        color: '#fff4d8',
-        stroke: '#000000',
-        strokeThickness: 3,
       })
       .setOrigin(0.5, 1)
       .setDepth(10001)
@@ -135,7 +137,7 @@ export class WorldScene extends Phaser.Scene {
     this.animals.spawn(55)
 
     // Free camera: start centered on player, no hard follow
-    this.cameras.main.setZoom(0.85)
+    this.cameras.main.setZoom(ZOOM_DEFAULT)
     this.cameras.main.centerOn(this.player.x, this.player.y)
 
     const kb = this.input.keyboard!
@@ -170,7 +172,7 @@ export class WorldScene extends Phaser.Scene {
     this.input.on('wheel', (_pointer: Phaser.Input.Pointer, _gos: unknown, _dx: number, dy: number) => {
       const cam = this.cameras.main
       const prev = cam.zoom
-      const next = Phaser.Math.Clamp(prev * (dy > 0 ? 0.9 : 1.1), ZOOM_MIN, ZOOM_MAX)
+      const next = this.stepZoom(prev, dy > 0 ? -1 : 1)
       if (next === prev) return
       const worldPoint = cam.getWorldPoint(_pointer.x, _pointer.y)
       cam.setZoom(next)
@@ -334,6 +336,19 @@ export class WorldScene extends Phaser.Scene {
     if (this.world.isBlockedTerrain(g.x, g.y)) return false
     if (this.build.isBlocked(g.x, g.y)) return false
     return true
+  }
+
+  /** Snap to the neighbouring clean zoom level rather than a smooth ramp. */
+  private stepZoom(current: number, dir: number): number {
+    let index = ZOOM_STEPS.findIndex((z) => Math.abs(z - current) < 0.001)
+    if (index === -1) {
+      index = ZOOM_STEPS.reduce(
+        (best, z, i) =>
+          Math.abs(z - current) < Math.abs(ZOOM_STEPS[best]! - current) ? i : best,
+        0,
+      )
+    }
+    return ZOOM_STEPS[Phaser.Math.Clamp(index + dir, 0, ZOOM_STEPS.length - 1)]!
   }
 
   /** Recentre on the player and flash a marker so they stand out in a crowd. */
