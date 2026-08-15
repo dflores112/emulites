@@ -1,4 +1,4 @@
-import { ABOUT, ANNOUNCE_TEXT, EMULITE_CONTRACT } from '../data/site'
+import { ABOUT, ANNOUNCE_TEXT, EMULITE_CONTRACT, SHOW_CONTRACT } from '../data/site'
 
 export function mountAnnounceChrome(): () => void {
   const bannerHost = document.getElementById('announce-banner')
@@ -14,22 +14,24 @@ export function mountAnnounceChrome(): () => void {
   bannerHost.hidden = false
   document.documentElement.style.setProperty('--announce-h', '40px')
 
-  aboutHost.innerHTML = `
-    <div class="about-panel" role="dialog" aria-labelledby="about-title">
-      <p class="brand" id="about-title">${escapeHtml(ABOUT.title)}</p>
-      <p class="about-chain">${escapeHtml(ABOUT.chainNote)}</p>
-      <p class="about-lead">${escapeHtml(ABOUT.lead)}</p>
-      <p class="about-body">${escapeHtml(ABOUT.body)}</p>
-
-      <div class="contract-block">
+  const contractHtml = SHOW_CONTRACT
+    ? `<div class="contract-block">
         <p class="section-label">${escapeHtml(ABOUT.contractLabel)}</p>
         <div class="contract-row">
           <code class="contract-addr" id="contract-addr" title="${escapeHtml(EMULITE_CONTRACT)}">${escapeHtml(EMULITE_CONTRACT)}</code>
           <button type="button" class="btn primary" id="contract-copy">Copy</button>
         </div>
         <p class="contract-hint" id="contract-hint" aria-live="polite"></p>
-      </div>
+      </div>`
+    : ''
 
+  aboutHost.innerHTML = `
+    <div class="about-panel" role="dialog" aria-labelledby="about-title">
+      <p class="brand" id="about-title">${escapeHtml(ABOUT.title)}</p>
+      <p class="about-chain">${escapeHtml(ABOUT.chainNote)}</p>
+      <p class="about-lead">${escapeHtml(ABOUT.lead)}</p>
+      <p class="about-body">${escapeHtml(ABOUT.body)}</p>
+      ${contractHtml}
       <div class="actions">
         <button type="button" class="btn" id="about-close">Back</button>
       </div>
@@ -40,8 +42,8 @@ export function mountAnnounceChrome(): () => void {
 
   const openBtn = bannerHost.querySelector('#announce-open') as HTMLButtonElement
   const closeBtn = aboutHost.querySelector('#about-close') as HTMLButtonElement
-  const copyBtn = aboutHost.querySelector('#contract-copy') as HTMLButtonElement
-  const hint = aboutHost.querySelector('#contract-hint') as HTMLElement
+  const copyBtn = aboutHost.querySelector('#contract-copy') as HTMLButtonElement | null
+  const hint = aboutHost.querySelector('#contract-hint') as HTMLElement | null
 
   const openAbout = () => {
     aboutHost.classList.remove('hidden')
@@ -52,7 +54,7 @@ export function mountAnnounceChrome(): () => void {
   const closeAbout = () => {
     aboutHost.classList.add('hidden')
     aboutHost.setAttribute('aria-hidden', 'true')
-    hint.textContent = ''
+    if (hint) hint.textContent = ''
     openBtn.focus()
   }
 
@@ -70,9 +72,11 @@ export function mountAnnounceChrome(): () => void {
   }
   window.addEventListener('keydown', onKey)
 
-  copyBtn.addEventListener('click', async () => {
+  copyBtn?.addEventListener('click', async () => {
     const ok = await copyText(EMULITE_CONTRACT)
-    hint.textContent = ok ? 'Copied to clipboard.' : 'Select the address and copy manually.'
+    if (hint) {
+      hint.textContent = ok ? 'Copied to clipboard.' : 'Select the address and copy manually.'
+    }
     if (ok) {
       copyBtn.textContent = 'Copied'
       window.setTimeout(() => {

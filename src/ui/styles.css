@@ -467,8 +467,10 @@ body {
   height: 132px;
   gap: 6px;
   border-radius: 4px;
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
+  /* Rotate labels 90° CCW so they read bottom → top along the tall button. */
+  writing-mode: vertical-lr;
+  text-orientation: sideways;
+  writing-mode: sideways-lr;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   font-size: 12px;
@@ -476,8 +478,11 @@ body {
 
 .dpad-grab-icon {
   writing-mode: horizontal-tb;
+  text-orientation: mixed;
   font-size: 18px;
   line-height: 1;
+  /* Undo the sideways rotation so the emoji stays upright. */
+  transform: rotate(90deg);
 }
 
 .travel {
